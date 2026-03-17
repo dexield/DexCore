@@ -20,19 +20,19 @@ on:
       DEVICE_TREE:
         description: 'OrangeFox Device Tree'
         required: true
-        default: 'https://github.com/cd-Crypton/custom_recovery_tree_realme_nashc'
+        default: 'https://github.com/chickendrop89/device_xiaomi_unified-recovery.git'
       DEVICE_TREE_BRANCH:
         description: 'OrangeFox Device Tree Branch'
         required: true
-        default: 'android-12.1'
+        default: 'fox-12.1'
       DEVICE_PATH:
         description: 'Specify your Device Path'
         required: true
-        default: 'device/realme/nashc'
+        default: 'device/xiaomi/tapas'
       DEVICE_NAME:
         description: 'Specify your Device Codename'
         required: true
-        default: 'nashc'
+        default: 'tapas'
       BUILD_TARGET:
         description: 'Specify your Build Target'
         required: true
@@ -65,6 +65,7 @@ jobs:
       
     - name: Build Environment
       run: |
+        sudo apt update
         sudo apt install aria2 -y
         git clone https://gitlab.com/OrangeFox/misc/scripts.git -b master
         cd scripts
@@ -87,6 +88,59 @@ jobs:
         git clone ${{ inputs.DEVICE_TREE }} -b ${{ inputs.DEVICE_TREE_BRANCH }} ./${{ inputs.DEVICE_PATH }}
         cd ${{ inputs.DEVICE_PATH }}
         echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
+    - name: Inject My Custom UI
+      run: |
+        cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}
+        # Удаляем стандартный интерфейс
+        rm -rf bootable/recovery
+        mkdir -p bootable/recovery
+        
+        # Создаем твой код с русским текстом
+        cat <<'EOF' > bootable/recovery/main.cpp
+        #include <stdio.h>
+        #include <unistd.h>
+        #include "minui/minui.h"
+
+        int main(int argc, char** argv) {
+            if (gr_init() != 0) return -1;
+            
+            gr_color(0, 0, 0, 255);
+            gr_clear();
+            
+            gr_color(255, 165, 0, 255); // оранжевый
+            gr_text(gr_sys_font(), 100, 500, "МОЯ КАСТОМНАЯ ПРОШИВКА v0.1", 0);
+            
+            gr_color(255, 255, 255, 255); // белый
+            gr_text(gr_sys_font(), 100, 650, "УСТРОЙСТВО: REDMI NOTE 12", 0);
+            gr_text(gr_sys_font(), 100, 800, "ГОТОВ К ОЧИСТКЕ", 0);
+            
+            gr_flip();
+            
+            while (true) { 
+                pause(); 
+            }
+            
+            return 0;
+        }
+        EOF
+
+        # Создаем инструкцию сборки
+        cat <<'EOF' > bootable/recovery/Android.bp
+        cc_binary {
+            name: "recovery",
+            recovery: true,
+            srcs: ["main.cpp"],
+            shared_libs: [
+                "libbase",
+                "libminui",
+                "libpng",
+                "libz",
+                "libcutils",
+                "liblog",
+            ],
+        }
+        EOF
 
     - name: Building OrangeFox
       run: |
@@ -112,13 +166,19 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}/OrangeFox*.img
+          OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}/recovery.img
           OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}/OrangeFox*.zip
-        name: OrangeFox Recovery for ${{ inputs.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
+        name: My Custom Recovery for ${{ inputs.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
         tag_name: ${{ github.run_id }}
         body: |
-          ## OrangeFox Recovery Build - Unofficial
-          Build: fox_${{ inputs.MANIFEST_BRANCH }}
-          Device: [Device Tree/Branch](${{ env.DEVICE_TREE_URL }}/tree/${{ inputs.DEVICE_TREE_BRANCH }})
-          Commit: Most recent [commit](${{ env.DEVICE_TREE_URL }}/commit/${{ env.COMMIT_ID }}) during building.
+          ## Custom Recovery Build
+          This is a test build with custom UI.
+          Device: ${{ inputs.DEVICE_NAME }}
+          Commit: ${{ env.COMMIT_ID }}
           
+          ### Changes
+          - Custom UI with Russian text
+          - Based on OrangeFox 12.1
+          
+          ### Device Tree
+          ${{ env.DEVICE_TREE_URL }}/tree/${{ inputs.DEVICE_TREE_BRANCH }}
