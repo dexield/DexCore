@@ -99,6 +99,7 @@ jobs:
         # Создаем заглушки для ресурсов, чтобы Makefile не падал
         mkdir -p bootable/recovery/res-xhdpi
         touch bootable/recovery/res-xhdpi/dummy.png
+        mkdir -p bootable/recovery/otautil
         
         # Создаем твой код
         cat <<'EOF' > bootable/recovery/main.cpp
@@ -138,15 +139,17 @@ jobs:
         }
         EOF
 
-
     - name: Building OrangeFox
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}
-        set +e
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
-        set -e
-        lunch twrp_${{ inputs.DEVICE_NAME }}-eng && make clean && mka adbd ${{ inputs.BUILD_TARGET }}image
+        export BUILD_BROKEN_MISSING_REQUIRED_MODULES=true
+        export LC_ALL=C
+        lunch twrp_${{ inputs.DEVICE_NAME }}-eng
+        mka ${{ inputs.BUILD_TARGET }}image -j$(nproc) || mka ${{ inputs.BUILD_TARGET }}image -j$(nproc) -k
+
+
 
     - name: Set Release Properties
       run: |
