@@ -96,7 +96,11 @@ jobs:
         rm -rf bootable/recovery
         mkdir -p bootable/recovery
         
-        # Создаем твой код с русским текстом
+        # Создаем заглушки для ресурсов, чтобы Makefile не падал
+        mkdir -p bootable/recovery/res-xhdpi
+        touch bootable/recovery/res-xhdpi/dummy.png
+        
+        # Создаем твой код
         cat <<'EOF' > bootable/recovery/main.cpp
         #include <stdio.h>
         #include <unistd.h>
@@ -104,23 +108,15 @@ jobs:
 
         int main(int argc, char** argv) {
             if (gr_init() != 0) return -1;
-            
             gr_color(0, 0, 0, 255);
             gr_clear();
-            
-            gr_color(255, 165, 0, 255); // оранжевый
-            gr_text(gr_sys_font(), 100, 500, "МОЯ КАСТОМНАЯ ПРОШИВКА v0.1", 0);
-            
-            gr_color(255, 255, 255, 255); // белый
-            gr_text(gr_sys_font(), 100, 650, "УСТРОЙСТВО: REDMI NOTE 12", 0);
-            gr_text(gr_sys_font(), 100, 800, "ГОТОВ К ОЧИСТКЕ", 0);
-            
+            gr_color(255, 165, 0, 255);
+            gr_text(gr_sys_font(), 100, 500, "MY CUSTOM RECOVERY v0.1", 0);
+            gr_color(255, 255, 255, 255);
+            gr_text(gr_sys_font(), 100, 650, "DEVICE: REDMI NOTE 12", 0);
+            gr_text(gr_sys_font(), 100, 800, "READY TO WIPE SYSTEM", 0);
             gr_flip();
-            
-            while (true) { 
-                pause(); 
-            }
-            
+            while (true) { pause(); }
             return 0;
         }
         EOF
@@ -141,6 +137,7 @@ jobs:
             ],
         }
         EOF
+
 
     - name: Building OrangeFox
       run: |
